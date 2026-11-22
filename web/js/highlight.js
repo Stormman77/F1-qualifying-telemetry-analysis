@@ -31,6 +31,9 @@ export function updateHighlights() {
   d3.selectAll("#pca .pca-dot").attr("r", (d) =>
     (d.round === state.round && d.corner === h ? 9 : d.round === state.round ? 6 : 4));
 
+  // sector breakdown: highlight the hovered corner's row
+  d3.selectAll("#sectors .corner-row").classed("active", (d) => Boolean(h) && d.label === h);
+
   // heatmap: soft band behind the hovered corner's type column
   d3.selectAll("#heatmap .col-band").attr("opacity", (d) => (corner && d === corner.type ? 1 : 0));
   d3.selectAll("#heatmap .col-label")

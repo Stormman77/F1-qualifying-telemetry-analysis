@@ -9,6 +9,7 @@ import { fillControls, updateTeamOptions } from "./controls.js";
 import { renderLapSummary } from "./views/lapSummary.js";
 import { renderTrackMap } from "./views/trackMap.js";
 import { renderSpeedTrace } from "./views/speedTrace.js";
+import { renderSectorBreakdown } from "./views/sectorBreakdown.js";
 import { renderHeatmap } from "./views/heatmap.js";
 import { renderPca } from "./views/pcaScatter.js";
 import { renderModel } from "./views/modelSelection.js";
@@ -17,6 +18,7 @@ import { renderModel } from "./views/modelSelection.js";
 function renderRaceViews() {
   renderLapSummary();
   renderTrackMap();
+  renderSectorBreakdown();
   renderSpeedTrace();
 }
 

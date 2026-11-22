@@ -148,7 +148,33 @@ def corner_features(median_speed, median_brake, zones):
 
 def team_representatives(laps):
     """Each team's faster driver in this session (laps.csv is sorted by time)."""
-    return laps.drop_duplicates("Team")[["Team", "Driver", "LapTime"]].reset_index(drop=True)
+    cols = ["Team", "Driver", "LapTime", "Sector1", "Sector2", "Sector3"]
+    return laps.drop_duplicates("Team")[cols].reset_index(drop=True)
+
+
+# ---------------------------------------------------------------- sectors
+
+def sector_boundaries(laps, resampled, grid):
+    """Distance (m) where sector 1 and sector 2 end, from the official sector times.
+
+    Telemetry has no sector markers, so for each driver the cumulative time
+    along the resampled lap (scaled to match the official lap time) is used to
+    find where the sector-1 and sector-1+2 times are reached. The median over
+    all drivers is returned.
+    """
+    ends = []
+    for lap in laps.itertuples():
+        if lap.Driver not in resampled or pd.isna(lap.Sector1) or pd.isna(lap.Sector2):
+            continue
+        elapsed = np.cumsum(resampled[lap.Driver]["dt"])
+        elapsed *= lap.LapTime / elapsed[-1]
+        ends.append([grid[np.searchsorted(elapsed, lap.Sector1)],
+                     grid[np.searchsorted(elapsed, lap.Sector1 + lap.Sector2)]])
+    return np.median(ends, axis=0).round().tolist()
+
+
+def as_seconds(value):
+    return None if pd.isna(value) else round(float(value), 3)
 
 
 def zone_time_deltas(resampled, reps, zones):
@@ -206,8 +232,12 @@ def main():
             "lap_length": round(lap_length, 1),
             "step": STEP * 2,  # traces are sent at half resolution to keep files small
             "outline": np.round(outline).astype(int).tolist(),
+            "sector_bounds": sector_boundaries(laps, resampled, grid),
+            # fastest time in each sector among all drivers' fastest laps
+            "best_sectors": [as_seconds(laps[f"Sector{i}"].min()) for i in (1, 2, 3)],
             "teams": [
                 {"team": row["Team"], "driver": row["Driver"], "lap_time": row["LapTime"],
+                 "sectors": [as_seconds(row[f"Sector{i}"]) for i in (1, 2, 3)],
                  "speed": np.round(resampled[row["Driver"]]["speed"][::2], 1).tolist(),
                  "throttle": np.rint(resampled[row["Driver"]]["throttle"][::2]).astype(int).tolist(),
                  "brake": resampled[row["Driver"]]["brake"][::2].astype(int).tolist()}
