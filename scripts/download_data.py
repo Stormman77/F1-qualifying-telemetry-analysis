@@ -5,6 +5,7 @@ For every round, this saves three files to data/raw/<year>/<round>_<event>/:
   telemetry.csv  car data + position for those laps (speed, throttle, brake,
                  gear, x/y, distance along the lap)
   corners.csv    corner numbers and positions from the circuit info
+  circuit.json   map rotation angle, to draw the track as seen on TV
 
 FastF1 needs an F1TV Access login (run `python -m fastf1 auth f1tv
 --authenticate` once). Raw API responses are cached in data/cache/, so a
@@ -16,6 +17,7 @@ Usage:
 """
 
 import argparse
+import json
 import re
 import unicodedata
 from pathlib import Path
@@ -36,14 +38,30 @@ def slugify(name):
     return re.sub(r"[^a-z0-9]+", "_", ascii_name.lower()).strip("_")
 
 
+def save_circuit(session, out_dir):
+    """Save the circuit's map rotation (degrees). Rotating the X/Y positions by
+    this angle gives the orientation used in F1 broadcast graphics."""
+    rotation = float(session.get_circuit_info().rotation)
+    with open(out_dir / "circuit.json", "w", encoding="utf-8") as f:
+        json.dump({"rotation": rotation}, f)
+
+
 def save_round(year, round_number, out_root, force=False):
     event = fastf1.get_event(year, round_number)
     out_dir = out_root / f"{round_number:02d}_{slugify(event['EventName'])}"
+    session = fastf1.get_session(year, round_number, "Q")
+
     if out_dir.exists() and not force:
-        print(f"  round {round_number}: already saved, skipping ({out_dir.name})")
+        # rounds saved before circuit.json existed only need the rotation added
+        if not (out_dir / "circuit.json").exists():
+            # circuit info needs laps and telemetry loaded (both come from the cache)
+            session.load(laps=True, telemetry=True, weather=False, messages=False)
+            save_circuit(session, out_dir)
+            print(f"  round {round_number}: added circuit.json ({out_dir.name})")
+        else:
+            print(f"  round {round_number}: already saved, skipping ({out_dir.name})")
         return
 
-    session = fastf1.get_session(year, round_number, "Q")
     session.load(laps=True, telemetry=True, weather=False, messages=False)
 
     lap_rows = []
@@ -75,6 +93,7 @@ def save_round(year, round_number, out_root, force=False):
     pd.DataFrame(lap_rows).sort_values("LapTime").to_csv(out_dir / "laps.csv", index=False)
     pd.concat(telemetry_parts).to_csv(out_dir / "telemetry.csv", index=False)
     corners.to_csv(out_dir / "corners.csv", index=False)
+    save_circuit(session, out_dir)
     print(f"  round {round_number}: saved {len(lap_rows)} laps, {len(corners)} corners ({out_dir.name})")
 
 

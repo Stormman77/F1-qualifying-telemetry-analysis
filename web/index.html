@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Where Is a Lap Won?</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="page-header">
+    <div class="header-row">
+      <h1>Where Is a Lap Won?</h1>
+      <a class="header-link" href="about.html">About this project →</a>
+    </div>
+    <p class="lede">A corner-by-corner look at 2025 Formula 1 qualifying. Every team's fastest lap at all
+      24 races, split into 403 corners and grouped into slow, medium and fast types.</p>
+  </header>
+
+  <section class="controls" aria-label="Filters">
+    <label>Race
+      <select id="race-select"></select>
+    </label>
+    <label>
+      <span class="swatch swatch-a" aria-hidden="true"></span>Team A
+      <select id="team-a"></select>
+    </label>
+    <label>
+      <span class="swatch swatch-b" aria-hidden="true"></span>Team B
+      <select id="team-b"></select>
+    </label>
+    <p id="lap-summary" class="lap-summary"></p>
+  </section>
+
+  <main class="grid">
+    <figure class="card card-map">
+      <figcaption>
+        <h2>Track map: which car was faster in each corner</h2>
+        <p>Dot color shows the faster team, dot size the time gap. Hover a corner to find it in the other charts;
+          click it to zoom the speed trace to that corner.</p>
+      </figcaption>
+      <div id="track-map" class="chart"></div>
+      <div class="legend" id="map-legend"></div>
+    </figure>
+
+    <figure class="card card-heatmap">
+      <figcaption>
+        <h2>Season fingerprint: time gained per corner type</h2>
+        <p>Average milliseconds per corner against the median team, all 24 races. Negative (teal) is faster.</p>
+      </figcaption>
+      <div id="heatmap" class="chart"></div>
+      <div class="legend" id="heatmap-legend"></div>
+    </figure>
+
+    <figure class="card card-trace">
+      <figcaption>
+        <h2>Speed, throttle and brake: the faster driver of each team over one lap</h2>
+        <p>Shaded bands are corner zones. Hover anywhere to compare both drivers at the same point on track.</p>
+      </figcaption>
+      <div id="speed-trace" class="chart"></div>
+    </figure>
+
+    <figure class="card card-pca">
+      <figcaption>
+        <h2>How the corners were grouped</h2>
+        <p>Each dot is one of 403 corners, placed by PCA of its minimum speed, exit speed and braking distance.
+          Color is the K-means cluster. Corners of the selected race are outlined.</p>
+      </figcaption>
+      <div id="pca" class="chart"></div>
+      <div class="legend" id="pca-legend"></div>
+    </figure>
+
+    <figure class="card card-model">
+      <figcaption>
+        <h2>Why three corner types?</h2>
+        <p>Silhouette score for each number of clusters k (higher = better separated groups). k = 2 only splits
+          braking corners from flat-out ones; k = 3 is the best split that also separates slow from medium.</p>
+      </figcaption>
+      <div id="model" class="chart"></div>
+      <table id="model-centers" class="centers"></table>
+    </figure>
+  </main>
+
+  <footer class="page-footer">
+    <p>Data: <a href="https://docs.fastf1.dev/">FastF1</a> (F1 live timing), 2025 qualifying sessions.
+      Corner types: K-means (k = 3) implemented in NumPy. Built with <a href="https://d3js.org/">D3.js</a>.
+      Source code: <a href="https://github.com/Stormman77/F1-qualifying-telemetry-analysis">GitHub</a>.</p>
+  </footer>
+
+  <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

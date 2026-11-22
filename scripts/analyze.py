@@ -93,6 +93,13 @@ def resample_laps(tel, lap_length):
 
 # --------------------------------------------------------- corner features
 
+def rotate(xy, degrees):
+    """Rotate X/Y positions by the circuit's map rotation (same convention as
+    FastF1's circuit map example), so tracks match broadcast orientation."""
+    a = np.deg2rad(degrees)
+    return xy @ np.array([[np.cos(a), np.sin(a)], [-np.sin(a), np.cos(a)]])
+
+
 def corner_zones(corners, lap_length):
     """Zone [start, end) in meters for each corner, never overlapping a neighbor."""
     d = corners["Distance"].to_numpy()
@@ -190,20 +197,24 @@ def main():
                                    "driver": row["Driver"], "delta_s": deltas[t, c]})
 
         pole = laps.iloc[0]["Driver"]
+        rotation = json.loads((round_dir / "circuit.json").read_text())["rotation"]
+        outline = rotate(np.column_stack([resampled[pole]["x"][::4], resampled[pole]["y"][::4]]), rotation)
+        feats[["map_x", "map_y"]] = rotate(corners[["X", "Y"]].to_numpy(), rotation)
         race_payloads[round_number] = {
             "round": round_number,
             "event": event,
             "lap_length": round(lap_length, 1),
             "step": STEP * 2,  # traces are sent at half resolution to keep files small
-            "outline": [[round(x), round(y)] for x, y in
-                        zip(resampled[pole]["x"][::4], resampled[pole]["y"][::4])],
+            "outline": np.round(outline).astype(int).tolist(),
             "teams": [
                 {"team": row["Team"], "driver": row["Driver"], "lap_time": row["LapTime"],
-                 "speed": np.round(resampled[row["Driver"]]["speed"][::2], 1).tolist()}
+                 "speed": np.round(resampled[row["Driver"]]["speed"][::2], 1).tolist(),
+                 "throttle": np.rint(resampled[row["Driver"]]["throttle"][::2]).astype(int).tolist(),
+                 "brake": resampled[row["Driver"]]["brake"][::2].astype(int).tolist()}
                 for _, row in reps.iterrows()
             ],
         }
-        races.append({"round": round_number, "event": event, "pole": pole})
+        races.append({"round": round_number, "event": event, "pole": pole, "laps": len(laps)})
         print(f"round {round_number:2d} {event:<28} {len(corners):2d} corners, lap {lap_length:6.0f} m")
 
     corners_df = pd.concat(corner_rows, ignore_index=True)
@@ -224,6 +235,11 @@ def main():
     corners_df["type"] = [rename[int(l)] for l in labels]
 
     coords, explained, components = pca_2d(X)
+    # PCA axis signs are arbitrary; flip PC1 so that faster corners sit on the right
+    min_speed_col = CLUSTER_FEATURES.index("min_speed")
+    if np.corrcoef(coords[:, 0], X[:, min_speed_col])[0, 1] < 0:
+        coords[:, 0] *= -1
+        components[0] *= -1
     corners_df["pc1"], corners_df["pc2"] = coords[:, 0], coords[:, 1]
 
     deltas_df = deltas_df.merge(corners_df[["round", "corner", "type"]], on=["round", "corner"])
@@ -241,7 +257,7 @@ def main():
         cdf = corners_df[corners_df["round"] == rnd]
         ddf = deltas_df[deltas_df["round"] == rnd]
         payload["corners"] = [
-            {"label": r.corner, "x": round(r.x), "y": round(r.y), "type": type_lookup[(rnd, r.corner)],
+            {"label": r.corner, "x": round(r.map_x), "y": round(r.map_y), "type": type_lookup[(rnd, r.corner)],
              "zone": [round(r.zone_start), round(r.zone_end)], "apex": round(r.apex_distance),
              "min_speed": round(r.min_speed), "deltas": {
                  d.team: round(d.delta_s, 3) for d in ddf[ddf["corner"] == r.corner].itertuples()}}

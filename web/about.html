@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>About · Where Is a Lap Won?</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="page-header narrow">
+    <div class="header-row">
+      <h1>About this project</h1>
+      <a class="header-link" href="index.html">← Back to the explorer</a>
+    </div>
+    <p class="lede">How the 2025 qualifying data was collected, analyzed and turned into the views on the main page.</p>
+  </header>
+
+  <main class="about">
+    <nav class="about-toc" aria-label="On this page">
+      <a href="#question">Question</a>
+      <a href="#data">Data</a>
+      <a href="#method">Method</a>
+      <a href="#corner-types">Corner types</a>
+      <a href="#findings">Findings</a>
+      <a href="#reading">Reading the charts</a>
+      <a href="#limitations">Limitations</a>
+      <a href="#uses">Uses</a>
+      <a href="#credits">Credits</a>
+    </nav>
+
+    <section id="question" class="card about-section">
+      <h2>The question</h2>
+      <p>During qualifying, the broadcast splits every lap into three sectors and colors each one purple
+        (fastest of the session), green (personal best) or yellow (slower than personal best). The colors tell you
+        <em>that</em> a driver gained or lost time, but each sector is 25 to 30 seconds long and holds several
+        corners, so they cannot say <em>where</em> or <em>why</em>.</p>
+      <p class="callout"><strong>Research question:</strong> In Formula 1 qualifying, which corners separate the
+        fastest teams from the rest, and does each team have a type of corner (slow, medium or fast) where it gains
+        the most time?</p>
+      <p>The audience is F1 fans who want to understand more than a results table shows: how racing lines, driving
+        styles and car strengths turn into lap time.</p>
+    </section>
+
+    <section id="data" class="card about-section">
+      <h2>The data</h2>
+      <div class="stat-row" id="data-stats"></div>
+      <table class="centers text-table">
+        <tr><th>Source</th><th>Used for</th><th>License / access</th></tr>
+        <tr><td><a href="https://docs.fastf1.dev/">FastF1</a></td>
+          <td>Lap times, car telemetry (speed, throttle, brake, gear) and car position for every qualifying lap</td>
+          <td>MIT-licensed library; F1 live timing data, F1TV Access login required since October 2026</td></tr>
+        <tr><td>FastF1 circuit info (MultiViewer)</td>
+          <td>Corner numbers, positions and the map rotation used to draw each track</td>
+          <td>Unofficial, credited source</td></tr>
+      </table>
+      <p>For each of the 24 races of 2025, the project uses every driver's <strong>fastest qualifying lap</strong>.
+        Qualifying laps are the fairest comparison: low fuel, new tires, no traffic and maximum effort.</p>
+    </section>
+
+    <section id="method" class="card about-section">
+      <h2>Method</h2>
+      <ol class="steps">
+        <li><strong>Resample every lap by distance.</strong> Telemetry arrives a few times per second, so two drivers'
+          samples land at different points on the track. Each lap is interpolated onto a common grid with a point
+          every 5 m, so drivers can be compared at exactly the same spot.</li>
+        <li><strong>Cut a zone around each corner.</strong> From 150 m before the corner marker to 100 m after it,
+          never overlapping the neighboring corner.</li>
+        <li><strong>Measure each corner.</strong> On the field-median lap (the middle speed of all 20 cars at every
+          point): minimum (apex) speed, exit speed and braking distance.</li>
+        <li><strong>Group the corners with K-means.</strong> All 403 corners of the season are clustered into
+          slow, medium and fast types. K-means is implemented by hand in NumPy (with k-means++ starts and 20
+          restarts). PCA reduces the three features to two axes for the scatter plot.</li>
+        <li><strong>Measure the teams.</strong> For each team's faster driver, the time through every corner zone is
+          compared with the median team. Averaging those gaps per corner type gives each team's
+          <em>fingerprint</em>.</li>
+      </ol>
+      <p><strong>Robustness check:</strong> re-running the pipeline with a 2.5 m or 10 m grid instead of 5 m kept
+        97% of corners in the same type, moved team fingerprints by at most 3 ms and left the team ranking
+        unchanged.</p>
+    </section>
+
+    <section id="corner-types" class="card about-section">
+      <h2>The three corner types</h2>
+      <p>The average corner in each K-means cluster:</p>
+      <table class="centers" id="types-table"></table>
+      <p id="k-note"></p>
+    </section>
+
+    <section id="findings" class="card about-section">
+      <h2>Findings</h2>
+      <ul id="findings-list"></ul>
+      <p><strong>Example (Australia, Norris vs Verstappen):</strong> both drivers brake at almost the same points,
+        but Norris carries more speed through the apex in 10 of 14 corners and is back on full throttle 10 to 25 m
+        earlier. Verstappen gains in the first corner of each sequence, where his higher straight-line speed
+        counts; Norris gains more back in the corners that follow. Select Australia on the main page and click
+        T3 or T4 on the map to see it in the speed, throttle and brake traces.</p>
+    </section>
+
+    <section id="reading" class="card about-section">
+      <h2>Reading the charts</h2>
+      <dl class="glossary">
+        <dt>Track map</dt>
+        <dd>One dot per corner, in the color of whichever selected team was faster there. Bigger dot = bigger gap.
+          Click a corner to zoom the speed trace to it.</dd>
+        <dt>Season fingerprint</dt>
+        <dd>Average milliseconds gained (teal, negative) or lost (red, positive) per corner against the median team,
+          over the whole season.</dd>
+        <dt>Speed, throttle and brake</dt>
+        <dd>Both drivers over one lap, aligned by distance. Shaded bands are corner zones. Ctrl + scroll to zoom.</dd>
+        <dt>Corner grouping (PCA)</dt>
+        <dd>Every corner of the season placed by its speed (left to right) and braking (top to bottom), colored by
+          type. Fast corners line up because almost all are taken flat out.</dd>
+        <dt>Why three corner types?</dt>
+        <dd>The silhouette score for each number of clusters. Higher means better separated groups.</dd>
+      </dl>
+    </section>
+
+    <section id="limitations" class="card about-section">
+      <h2>Limitations</h2>
+      <ul>
+        <li><strong>One lap per team per race.</strong> Results mix car and driver: a team's faster driver represents
+          the car.</li>
+        <li><strong>Sampling.</strong> Telemetry comes a few times per second, so differences under about 10 m (or a
+          few km/h at a single point) are within the noise.</li>
+        <li><strong>Corner zones are fixed windows.</strong> Gains on straights are not counted, and in tight
+          sequences the first corner's zone includes the end of the straight before it.</li>
+        <li><strong>Unofficial data.</strong> Timing and corner positions come from unofficial sources and can have
+          gaps, as with the Miami lap above.</li>
+      </ul>
+    </section>
+
+    <section id="uses" class="card about-section">
+      <h2>What the data can be used for</h2>
+      <ul>
+        <li>Seeing <em>how</em> a pole lap was won, corner by corner, instead of only the final gap.</li>
+        <li>Comparing car characteristics: which teams are strong in slow, traction-limited corners and which in
+          fast, aerodynamic ones.</li>
+        <li>Predicting which tracks should suit which team, based on each track's mix of corner types.</li>
+        <li>Comparing seasons: the same pipeline can run on 2026 to see how the new regulations changed team
+          strengths.</li>
+      </ul>
+    </section>
+
+    <section id="credits" class="card about-section">
+      <h2>Credits</h2>
+      <p>Data: <a href="https://docs.fastf1.dev/">FastF1</a> (F1 live timing) and its circuit info (MultiViewer).
+        Charts: <a href="https://d3js.org/">D3.js</a>. Analysis: Python, pandas and NumPy.
+        Source code and data: <a href="https://github.com/Stormman77/F1-qualifying-telemetry-analysis">GitHub</a>.</p>
+    </section>
+  </main>
+
+  <footer class="page-footer narrow"></footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+  <script type="module" src="js/about.js"></script>
+</body>
+</html>
