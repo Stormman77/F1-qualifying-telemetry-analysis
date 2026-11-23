@@ -177,13 +177,31 @@ def as_seconds(value):
     return None if pd.isna(value) else round(float(value), 3)
 
 
-def zone_time_deltas(resampled, reps, zones):
-    """Seconds each team gains (<0) or loses (>0) per corner zone vs the median team."""
-    times = np.array([
-        [resampled[drv]["dt"][int(s // STEP):int(e // STEP)].sum() for s, e in zones]
-        for drv in reps["Driver"]
-    ])
-    return times - np.median(times, axis=0)
+def zone_time_deltas(resampled, drivers, reps, zones):
+    """Seconds each driver gains (<0) or loses (>0) per corner zone vs the median team.
+
+    The baseline is the median over the team representatives (each team's
+    faster driver), so team and teammate comparisons use the same reference.
+    Returns {driver: array with one value per corner}.
+    """
+    times = {
+        drv: np.array([resampled[drv]["dt"][int(s // STEP):int(e // STEP)].sum() for s, e in zones])
+        for drv in drivers
+    }
+    baseline = np.median([times[drv] for drv in reps["Driver"]], axis=0)
+    return {drv: t - baseline for drv, t in times.items()}
+
+
+def driver_payload(row, resampled):
+    """One driver's lap for the website: times, sectors and half-resolution traces."""
+    r = resampled[row["Driver"]]
+    return {
+        "team": row["Team"], "driver": row["Driver"], "lap_time": row["LapTime"],
+        "sectors": [as_seconds(row[f"Sector{i}"]) for i in (1, 2, 3)],
+        "speed": np.round(r["speed"][::2], 1).tolist(),
+        "throttle": np.rint(r["throttle"][::2]).astype(int).tolist(),
+        "brake": r["brake"][::2].astype(int).tolist(),
+    }
 
 
 # --------------------------------------------------------------- pipeline
@@ -216,11 +234,13 @@ def main():
         corner_rows.append(feats)
 
         reps = team_representatives(laps)
-        deltas = zone_time_deltas(resampled, reps, zones)
-        for t, row in reps.iterrows():
+        deltas = zone_time_deltas(resampled, laps["Driver"], reps, zones)
+        rep_drivers = set(reps["Driver"])
+        for row in laps.itertuples():
             for c, label in enumerate(corners["Label"]):
-                delta_rows.append({"round": round_number, "corner": label, "team": row["Team"],
-                                   "driver": row["Driver"], "delta_s": deltas[t, c]})
+                delta_rows.append({"round": round_number, "corner": label, "team": row.Team,
+                                   "driver": row.Driver, "is_team_rep": row.Driver in rep_drivers,
+                                   "delta_s": deltas[row.Driver][c]})
 
         pole = laps.iloc[0]["Driver"]
         rotation = json.loads((round_dir / "circuit.json").read_text())["rotation"]
@@ -235,14 +255,9 @@ def main():
             "sector_bounds": sector_boundaries(laps, resampled, grid),
             # fastest time in each sector among all drivers' fastest laps
             "best_sectors": [as_seconds(laps[f"Sector{i}"].min()) for i in (1, 2, 3)],
-            "teams": [
-                {"team": row["Team"], "driver": row["Driver"], "lap_time": row["LapTime"],
-                 "sectors": [as_seconds(row[f"Sector{i}"]) for i in (1, 2, 3)],
-                 "speed": np.round(resampled[row["Driver"]]["speed"][::2], 1).tolist(),
-                 "throttle": np.rint(resampled[row["Driver"]]["throttle"][::2]).astype(int).tolist(),
-                 "brake": resampled[row["Driver"]]["brake"][::2].astype(int).tolist()}
-                for _, row in reps.iterrows()
-            ],
+            # every driver with a valid lap; team_reps names each team's faster driver
+            "drivers": [driver_payload(row, resampled) for _, row in laps.iterrows()],
+            "team_reps": dict(zip(reps["Team"], reps["Driver"])),
         }
         races.append({"round": round_number, "event": event, "pole": pole, "laps": len(laps)})
         print(f"round {round_number:2d} {event:<28} {len(corners):2d} corners, lap {lap_length:6.0f} m")
@@ -272,25 +287,29 @@ def main():
         components[0] *= -1
     corners_df["pc1"], corners_df["pc2"] = coords[:, 0], coords[:, 1]
 
-    deltas_df = deltas_df.merge(corners_df[["round", "corner", "type"]], on=["round", "corner"])
+    driver_deltas_df = deltas_df.merge(corners_df[["round", "corner", "type"]], on=["round", "corner"])
+    # team-level analysis uses each team's faster driver only
+    deltas_df = driver_deltas_df[driver_deltas_df["is_team_rep"]].drop(columns="is_team_rep")
     fingerprint = (deltas_df.groupby(["team", "type"])["delta_s"]
                    .agg(["mean", "count"]).reset_index())
 
     # ---- CSV outputs (for the report and repository)
     corners_df.to_csv(PROCESSED_DIR / "corners_2025.csv", index=False)
     deltas_df.to_csv(PROCESSED_DIR / "team_corner_deltas_2025.csv", index=False)
+    driver_deltas_df.to_csv(PROCESSED_DIR / "driver_corner_deltas_2025.csv", index=False)
     fingerprint.to_csv(PROCESSED_DIR / "team_fingerprint_2025.csv", index=False)
 
     # ---- JSON outputs (for the website)
     type_lookup = corners_df.set_index(["round", "corner"])["type"].to_dict()
     for rnd, payload in race_payloads.items():
         cdf = corners_df[corners_df["round"] == rnd]
-        ddf = deltas_df[deltas_df["round"] == rnd]
+        ddf = driver_deltas_df[driver_deltas_df["round"] == rnd]
         payload["corners"] = [
             {"label": r.corner, "x": round(r.map_x), "y": round(r.map_y), "type": type_lookup[(rnd, r.corner)],
              "zone": [round(r.zone_start), round(r.zone_end)], "apex": round(r.apex_distance),
-             "min_speed": round(r.min_speed), "deltas": {
-                 d.team: round(d.delta_s, 3) for d in ddf[ddf["corner"] == r.corner].itertuples()}}
+             "min_speed": round(r.min_speed),
+             # seconds vs the median team, keyed by driver code
+             "deltas": {d.driver: round(d.delta_s, 3) for d in ddf[ddf["corner"] == r.corner].itertuples()}}
             for r in cdf.itertuples()
         ]
         write_json(WEB_DATA_DIR / f"race_{rnd:02d}.json", payload)

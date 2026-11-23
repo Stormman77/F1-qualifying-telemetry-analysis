@@ -3,8 +3,7 @@
 // time was gained or lost.
 
 import { state } from "../state.js";
-import { color } from "../theme.js";
-import { teamEntry } from "../race.js";
+import { getSides } from "../race.js";
 import { setHoverCorner, focusCorner, updateHighlights } from "../highlight.js";
 
 const SECTOR_COLORS = { purple: "fastest of anyone", green: "faster than the other driver", yellow: "slower than the other driver" };
@@ -13,14 +12,16 @@ export function renderSectorBreakdown() {
   const root = d3.select("#sectors");
   root.selectAll("*").remove();
 
-  const a = teamEntry(state.teamA);
-  const b = teamEntry(state.teamB);
-  if (!a || !b || a.sectors.some((s) => s === null) || b.sectors.some((s) => s === null)) {
+  const sides = getSides();
+  if (!sides.a || !sides.b || [sides.a, sides.b].some((s) => s.entry.sectors.some((t) => t === null))) {
     root.append("p").attr("class", "empty-note").text("Sector times are not available for this pair at this race.");
+    d3.select("#sectors-legend").html("");
     return;
   }
+  const a = sides.a.entry;
+  const b = sides.b.entry;
 
-  const sectors = buildSectors(a, b);
+  const sectors = buildSectors(sides);
   // one shared scale for every bar, so bars in different sectors are comparable
   const maxAbs = d3.max(sectors.flatMap((s) => s.rows), (r) => Math.abs(r.gap)) || 0.001;
 
@@ -53,7 +54,7 @@ export function renderSectorBreakdown() {
   track.append("span").attr("class", "row-bar-fill")
     .style("left", (r) => (r.gap < 0 ? `${50 - (Math.abs(r.gap) / maxAbs) * 50}%` : "50%"))
     .style("width", (r) => `${(Math.abs(r.gap) / maxAbs) * 50}%`)
-    .style("background", (r) => (r.gap < 0 ? color["team-a"] : color["team-b"]));
+    .style("background", (r) => (r.gap < 0 ? sides.a.color : sides.b.color));
   rows.append("span").attr("class", "row-value")
     .text((r) => (Math.abs(r.gap) < 0.0005 ? "even" : `${r.gap < 0 ? a.driver : b.driver} ${Math.round(Math.abs(r.gap) * 1000)} ms`));
 
@@ -67,8 +68,10 @@ export function renderSectorBreakdown() {
 
 // Per sector: the two tags and one row per corner plus a "straights & rest"
 // row, so the rows add up to the official sector gap.
-function buildSectors(a, b) {
+function buildSectors(sides) {
   const race = state.race;
+  const a = sides.a.entry;
+  const b = sides.b.entry;
   const bounds = [0, ...race.sector_bounds, race.lap_length];
   return [0, 1, 2].map((i) => {
     const start = Math.round(bounds[i]);
@@ -78,7 +81,7 @@ function buildSectors(a, b) {
     const corners = race.corners.filter((c) => c.apex >= bounds[i] && c.apex < bounds[i + 1]);
     const rows = corners.map((c) => ({
       label: c.label,
-      gap: (c.deltas[state.teamA] ?? 0) - (c.deltas[state.teamB] ?? 0),
+      gap: (c.deltas[a.driver] ?? 0) - (c.deltas[b.driver] ?? 0),
     }));
     rows.push({ label: null, gap: sectorGap - d3.sum(rows, (r) => r.gap) });
 
@@ -90,7 +93,7 @@ function buildSectors(a, b) {
     };
     return {
       index: i, start, end, rows,
-      tags: [tag(a, b, color["team-a"]), tag(b, a, color["team-b"])],
+      tags: [tag(a, b, sides.a.color), tag(b, a, sides.b.color)],
     };
   });
 }

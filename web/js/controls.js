@@ -1,4 +1,4 @@
-// The race and team dropdowns at the top of the page.
+// The controls at the top of the page: race, comparison mode and teams.
 
 import { state } from "./state.js";
 
@@ -12,10 +12,13 @@ export function fillSelect(selector, options, selected) {
 export function fillControls() {
   const teams = [...new Set(state.fingerprint.map((d) => d.team))].sort();
   const races = state.races.map((r) => [r.round, `${r.round}. ${r.event.replace(" Grand Prix", " GP")}`]);
+  const teamOptions = teams.map((t) => [t, t]);
   fillSelect("#race-select", races, state.round);
-  fillSelect("#team-a", teams.map((t) => [t, t]), state.teamA);
-  fillSelect("#team-b", teams.map((t) => [t, t]), state.teamB);
+  fillSelect("#team-a", teamOptions, state.teamA);
+  fillSelect("#team-b", teamOptions, state.teamB);
+  fillSelect("#team-single", teamOptions, state.team);
   updateTeamOptions();
+  updateModeControls();
 }
 
 // A team cannot be compared with itself: each dropdown disables the team
@@ -23,4 +26,13 @@ export function fillControls() {
 export function updateTeamOptions() {
   d3.selectAll("#team-a option").property("disabled", (d) => d[0] === state.teamB);
   d3.selectAll("#team-b option").property("disabled", (d) => d[0] === state.teamA);
+}
+
+// Show the two team pickers in team mode and the single picker in teammate mode.
+export function updateModeControls() {
+  d3.selectAll(".mode-toggle button")
+    .classed("active", function () { return this.dataset.mode === state.mode; })
+    .attr("aria-pressed", function () { return this.dataset.mode === state.mode; });
+  d3.selectAll(".teams-only").style("display", state.mode === "teams" ? null : "none");
+  d3.selectAll(".teammates-only").style("display", state.mode === "teammates" ? null : "none");
 }

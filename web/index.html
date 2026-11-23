@@ -20,13 +20,21 @@
     <label>Race
       <select id="race-select"></select>
     </label>
-    <label>
+    <div class="mode-toggle" role="group" aria-label="Comparison">
+      <button type="button" data-mode="teams">Team vs team</button>
+      <button type="button" data-mode="teammates">Teammates</button>
+    </div>
+    <label class="teams-only">
       <span class="swatch swatch-a" aria-hidden="true"></span>Team A
       <select id="team-a"></select>
     </label>
-    <label>
+    <label class="teams-only">
       <span class="swatch swatch-b" aria-hidden="true"></span>Team B
       <select id="team-b"></select>
+    </label>
+    <label class="teammates-only">
+      <span class="swatch swatch-a" aria-hidden="true"></span>Team
+      <select id="team-single"></select>
     </label>
     <p id="lap-summary" class="lap-summary"></p>
   </section>
@@ -35,7 +43,7 @@
     <figure class="card card-map">
       <figcaption>
         <h2>Track map: which car was faster in each corner</h2>
-        <p>Dot color shows the faster team, dot size the time gap. Hover a corner to find it in the other charts;
+        <p>Dot color shows who was faster in that corner, dot size the time gap. Hover a corner to find it in the other charts;
           click it to zoom the speed trace to that corner.</p>
       </figcaption>
       <div id="track-map" class="chart"></div>
@@ -63,7 +71,7 @@
 
     <figure class="card card-trace">
       <figcaption>
-        <h2>Speed, throttle and brake: the faster driver of each team over one lap</h2>
+        <h2>Speed, throttle and brake: the two compared laps, point by point</h2>
         <p>Shaded bands are corner zones. Hover anywhere to compare both drivers at the same point on track.</p>
       </figcaption>
       <div id="speed-trace" class="chart"></div>

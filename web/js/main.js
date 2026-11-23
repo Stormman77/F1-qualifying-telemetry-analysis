@@ -5,7 +5,7 @@
 import { state } from "./state.js";
 import { readColors, applyTeamColors } from "./theme.js";
 import { loadJson } from "./utils.js";
-import { fillControls, updateTeamOptions } from "./controls.js";
+import { fillControls, updateTeamOptions, updateModeControls } from "./controls.js";
 import { renderLapSummary } from "./views/lapSummary.js";
 import { renderTrackMap } from "./views/trackMap.js";
 import { renderSpeedTrace } from "./views/speedTrace.js";
@@ -57,6 +57,13 @@ async function init() {
   d3.select("#race-select").on("change", (e) => loadRace(+e.target.value));
   d3.select("#team-a").on("change", (e) => { state.teamA = e.target.value; onTeamsChanged(); });
   d3.select("#team-b").on("change", (e) => { state.teamB = e.target.value; onTeamsChanged(); });
+  d3.select("#team-single").on("change", (e) => { state.team = e.target.value; onTeamsChanged(); });
+  d3.selectAll(".mode-toggle button").on("click", function () {
+    if (state.mode === this.dataset.mode) return;
+    state.mode = this.dataset.mode;
+    updateModeControls();
+    onTeamsChanged();
+  });
 
   // redraw when the system switches light/dark, or the window is resized
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {

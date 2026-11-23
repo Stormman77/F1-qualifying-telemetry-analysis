@@ -21,7 +21,8 @@ export function updateHighlights() {
   const corner = h && state.race ? state.race.corners.find((c) => c.label === h) : null;
 
   // track map: fade the other corners
-  d3.selectAll("#track-map .corner").attr("opacity", (d) => (!h || d.label === h ? 1 : 0.35));
+  d3.selectAll("#track-map .corner, #track-map .corner-label")
+    .attr("opacity", (d) => (!h || d.label === h ? 1 : 0.35));
 
   // speed trace: darken the hovered corner's zone
   d3.selectAll("#speed-trace .zone rect")

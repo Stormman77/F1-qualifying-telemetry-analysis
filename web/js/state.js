@@ -10,7 +10,9 @@ export const state = {
   model: null,        // data/model.json: k selection, cluster centers
   race: null,         // the loaded data/race_XX.json for the selected round
   round: 1,
+  mode: "teams",      // "teams": team A vs team B, "teammates": the two drivers of `team`
   teamA: "McLaren",
   teamB: "Red Bull Racing",
+  team: "McLaren",    // the team shown in teammate mode
   hoverCorner: null,  // corner label currently hovered in any view
 };

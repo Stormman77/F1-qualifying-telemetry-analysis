@@ -51,6 +51,11 @@ export function renderHeatmap() {
 }
 
 function drawLabels(svg, x, y, m, teams) {
+  // [team, marker color] for the rows to mark: two teams, or one in teammate mode
+  const selected = state.mode === "teammates"
+    ? [[state.team, color["team-a"]]]
+    : [[state.teamA, color["team-a"]], [state.teamB, color["team-b"]]];
+
   svg.append("g").selectAll("text").data(TYPES).join("text")
     .attr("class", "col-label")
     .attr("x", (d) => x(d) + x.bandwidth() / 2).attr("y", m.top - 9)
@@ -62,13 +67,13 @@ function drawLabels(svg, x, y, m, teams) {
     .attr("class", "row-label")
     .attr("x", m.left - 8).attr("y", (d) => y(d) + y.bandwidth() / 2)
     .attr("dy", "0.35em").attr("text-anchor", "end").attr("font-size", 12)
-    .attr("font-weight", (d) => (d === state.teamA || d === state.teamB ? 700 : 400))
+    .attr("font-weight", (d) => (selected.some(([team]) => team === d) ? 700 : 400))
     .attr("fill", color["text-primary"])
     .text((d) => d);
 
-  // team A / B color markers next to their rows
+  // color markers next to the selected team rows
   svg.append("g").selectAll("rect")
-    .data([[state.teamA, color["team-a"]], [state.teamB, color["team-b"]]]).join("rect")
+    .data(selected).join("rect")
     .attr("x", 4).attr("y", (d) => y(d[0]) + y.bandwidth() / 2 - 5)
     .attr("width", 10).attr("height", 10).attr("rx", 3)
     .attr("fill", (d) => d[1]);

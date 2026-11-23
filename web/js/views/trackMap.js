@@ -1,9 +1,10 @@
 // Track map: the circuit outline with one dot per corner, colored by which of
-// the two selected teams was faster there and sized by the time gap.
+// the two compared laps (teams or teammates) was faster there and sized by the
+// time gap.
 
 import { state } from "../state.js";
 import { color } from "../theme.js";
-import { teamEntry, cornerGap } from "../race.js";
+import { getSides, cornerGap } from "../race.js";
 import { chartWidth, dot, fmtMs } from "../utils.js";
 import { showTooltip, hideTooltip } from "../tooltip.js";
 import { setHoverCorner, updateHighlights, focusCorner } from "../highlight.js";
@@ -36,7 +37,7 @@ export function renderTrackMap() {
     .attr("stroke-width", 6)
     .attr("stroke-linejoin", "round");
 
-  const gaps = state.race.corners.map(cornerGap).filter((g) => g !== null);
+  const gaps = state.race.corners.map((c) => cornerGap(c)).filter((g) => g !== null);
   const r = d3.scaleSqrt().domain([0, d3.max(gaps, Math.abs) || 0.01]).range([5, 14]);
   const radius = (d) => (cornerGap(d) === null ? 5 : r(Math.abs(cornerGap(d))));
 
@@ -59,30 +60,40 @@ export function renderTrackMap() {
     })
     .attr("stroke", color.surface)
     .attr("stroke-width", 2);
-  corners.append("text")
-    .text((d) => d.label)
-    .attr("x", (d) => radius(d) + 3)
-    .attr("y", -4)
+  // labels in their own layer above every dot, with a halo in the card color,
+  // so a big neighboring dot can't hide them
+  svg.append("g").attr("pointer-events", "none")
+    .selectAll("text").data(state.race.corners).join("text")
+    .attr("class", "corner-label")
+    .attr("x", (d) => px(d.x) + radius(d) + 3)
+    .attr("y", (d) => py(d.y) - 4)
     .attr("font-size", 11)
-    .attr("fill", color["text-secondary"]);
+    .attr("fill", color["text-secondary"])
+    .attr("stroke", color.surface)
+    .attr("stroke-width", 3)
+    .attr("stroke-linejoin", "round")
+    .attr("paint-order", "stroke")
+    .text((d) => d.label);
 
+  const { a, b } = getSides();
   d3.select("#map-legend").html(
-    `<span class="legend-item">${dot(color["team-a"])}${state.teamA} faster</span>`
-    + `<span class="legend-item">${dot(color["team-b"])}${state.teamB} faster</span>`
+    (a ? `<span class="legend-item">${dot(a.color)}${a.name} faster</span>` : "")
+    + (b ? `<span class="legend-item">${dot(b.color)}${b.name} faster</span>` : "")
     + `<span class="legend-item">Larger dot = bigger gap</span>`);
   updateHighlights();
 }
 
 function cornerTooltip(d) {
-  const gap = cornerGap(d);
-  const a = teamEntry(state.teamA), b = teamEntry(state.teamB);
+  const { a, b } = getSides();
+  const gap = cornerGap(d, { a, b });
   let rows = `<div class="tt-muted">${d.type} corner · min speed ${d.min_speed} km/h</div>`;
   if (gap !== null) {
     const faster = gap < 0 ? a : b;
-    rows += `<div class="tt-row">${dot(gap < 0 ? color["team-a"] : color["team-b"])}`
-      + `${faster.driver} faster by ${Math.abs(gap * 1000).toFixed(0)} ms</div>`;
+    rows += `<div class="tt-row">${dot(faster.color)}`
+      + `${faster.entry.driver} faster by ${Math.abs(gap * 1000).toFixed(0)} ms</div>`;
   }
-  rows += `<div class="tt-muted">vs median team: ${a ? `${a.driver} ${fmtMs(d.deltas[state.teamA])}` : ""}`
-    + `${b ? `, ${b.driver} ${fmtMs(d.deltas[state.teamB])}` : ""}</div>`;
+  const vsMedian = [a, b].filter(Boolean)
+    .map((s) => `${s.entry.driver} ${fmtMs(d.deltas[s.entry.driver])}`).join(", ");
+  rows += `<div class="tt-muted">vs median team: ${vsMedian}</div>`;
   return `<div class="tt-title">${d.label} · ${state.race.event}</div>${rows}`;
 }

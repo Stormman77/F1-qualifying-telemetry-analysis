@@ -38,12 +38,14 @@ function colorDistance(a, b) {
 }
 
 // Team colors are set as CSS variables, so the dropdown swatches, map dots,
-// speed trace and heatmap markers all read the same values.
+// speed trace and heatmap markers all read the same values. In teammate mode
+// both drivers share a team color, so the second driver gets the neutral one.
 export function applyTeamColors() {
   const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  const a = TEAM_COLORS[state.teamA];
-  let b = TEAM_COLORS[state.teamB];
-  if (colorDistance(a, b) < MIN_COLOR_DISTANCE) b = dark ? "#e6e5e0" : "#52514e";
+  const neutral = dark ? "#e6e5e0" : "#52514e";
+  const a = TEAM_COLORS[state.mode === "teammates" ? state.team : state.teamA];
+  let b = state.mode === "teammates" ? neutral : TEAM_COLORS[state.teamB];
+  if (colorDistance(a, b) < MIN_COLOR_DISTANCE) b = neutral;
   document.documentElement.style.setProperty("--team-a", a);
   document.documentElement.style.setProperty("--team-b", b);
   readColors();

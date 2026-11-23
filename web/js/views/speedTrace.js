@@ -1,11 +1,11 @@
-// Speed trace: both teams' faster driver over one lap, in three stacked
+// Speed trace: the two compared laps (teams or teammates), in three stacked
 // panels that share the distance axis: speed, throttle and brake. Corner
 // zones are shaded, a crosshair tooltip follows the cursor, and the distance
 // axis is zoomable.
 
 import { state } from "../state.js";
 import { color, css } from "../theme.js";
-import { teamEntry } from "../race.js";
+import { getSides } from "../race.js";
 import { chartWidth, dot } from "../utils.js";
 import { showTooltip, hideTooltip } from "../tooltip.js";
 import { setHoverCorner, updateHighlights, onFocusCorner } from "../highlight.js";
@@ -33,9 +33,9 @@ export function renderSpeedTrace() {
   const plotTop = PANELS.speed[0];
   const plotBottom = PANELS.brake[1];
 
-  const series = [state.teamA, state.teamB]
-    .map((team, i) => ({ team, entry: teamEntry(team), color: i === 0 ? color["team-a"] : color["team-b"] }))
-    .filter((s) => s.entry);
+  const { a, b } = getSides();
+  const series = [a, b].filter(Boolean)
+    .map((side) => ({ team: side.entry.team, entry: side.entry, color: side.color }));
   const step = state.race.step;
   const maxLen = d3.max(series, (s) => s.entry.speed.length) || 1;
 
@@ -45,11 +45,11 @@ export function renderSpeedTrace() {
     .domain([0, (d3.max(series, (s) => d3.max(s.entry.speed)) || 350) * 1.05]).nice()
     .range([PANELS.speed[1], PANELS.speed[0]]);
   const yThrottle = d3.scaleLinear().domain([0, 100]).range([PANELS.throttle[1], PANELS.throttle[0]]);
-  const brakeRow = d3.scaleBand().domain(series.map((s) => s.team))
+  const brakeRow = d3.scaleBand().domain(series.map((s) => s.entry.driver))
     .range(PANELS.brake).paddingInner(0.25);
 
   const svg = container.append("svg").attr("viewBox", `0 0 ${width} ${height}`)
-    .attr("role", "img").attr("aria-label", "Speed, throttle and brake against lap distance for both teams");
+    .attr("role", "img").attr("aria-label", "Speed, throttle and brake against lap distance for the two compared laps");
 
   // anything drawn in the plot area is clipped, so zoomed lines don't spill over the axis
   svg.append("clipPath").attr("id", "trace-clip")
@@ -76,7 +76,7 @@ export function renderSpeedTrace() {
   const brakeBlocks = plot.append("g").selectAll("g").data(series).join("g")
     .selectAll("rect").data((s) => brakeRuns(s.entry.brake).map((run) => ({ ...run, s })))
     .join("rect")
-    .attr("y", (d) => brakeRow(d.s.team))
+    .attr("y", (d) => brakeRow(d.s.entry.driver))
     .attr("height", brakeRow.bandwidth())
     .attr("rx", 2)
     .attr("fill", (d) => d.s.color);
@@ -175,7 +175,7 @@ function drawPanelAxes(svg, { ySpeed, yThrottle, brakeRow, series, m, width }) {
   // brake rows are labeled with the driver code instead of an axis
   svg.append("g").selectAll("text").data(series).join("text")
     .attr("class", "axis-title")
-    .attr("x", m.left - 6).attr("y", (s) => brakeRow(s.team) + brakeRow.bandwidth() / 2)
+    .attr("x", m.left - 6).attr("y", (s) => brakeRow(s.entry.driver) + brakeRow.bandwidth() / 2)
     .attr("dy", "0.35em").attr("text-anchor", "end").attr("font-size", 10)
     .text((s) => s.entry.driver);
 

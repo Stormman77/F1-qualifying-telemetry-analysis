@@ -94,6 +94,29 @@ select {
   border-radius: 6px;
   padding: 4px 8px;
 }
+.mode-toggle {
+  display: inline-flex;
+  border: 1px solid var(--axis);
+  border-radius: 999px;
+  padding: 2px;
+  background: var(--surface);
+}
+.mode-toggle button {
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  padding: 3px 12px;
+  cursor: pointer;
+}
+.mode-toggle button.active {
+  color: var(--text-primary);
+  background: var(--highlight);
+  font-weight: 600;
+}
+
 .swatch {
   display: inline-block;
   width: 12px;

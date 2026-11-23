@@ -100,11 +100,17 @@
       <h2>Reading the charts</h2>
       <dl class="glossary">
         <dt>Track map</dt>
-        <dd>One dot per corner, in the color of whichever selected team was faster there. Bigger dot = bigger gap.
-          Click a corner to zoom the speed trace to it.</dd>
+        <dd>One dot per corner, in the color of whichever of the two compared laps was faster there. Bigger dot =
+          bigger gap. Click a corner to zoom the speed trace to it.</dd>
+        <dt>Team vs team / Teammates</dt>
+        <dd>The toggle above the charts switches between comparing two teams (each team's faster driver) and
+          comparing the two drivers of one team. Teammates share a car, so their gaps show the driver's part.</dd>
         <dt>Season fingerprint</dt>
         <dd>Average milliseconds gained (teal, negative) or lost (red, positive) per corner against the median team,
           over the whole season.</dd>
+        <dt>Sector by sector</dt>
+        <dd>The three sector times colored like the broadcast (purple, green, yellow), then each sector split into
+          its corners plus a "Straights" row, so you can see which corners made up the sector gap.</dd>
         <dt>Speed, throttle and brake</dt>
         <dd>Both drivers over one lap, aligned by distance. Shaded bands are corner zones. Ctrl + scroll to zoom.</dd>
         <dt>Corner grouping (PCA)</dt>
@@ -118,14 +124,17 @@
     <section id="limitations" class="card about-section">
       <h2>Limitations</h2>
       <ul>
-        <li><strong>One lap per team per race.</strong> Results mix car and driver: a team's faster driver represents
-          the car.</li>
+        <li><strong>One lap per team per race.</strong> Team results mix car and driver: a team's faster driver
+          represents the car. Teammate mode helps separate the two, but only for one race at a time.</li>
         <li><strong>Sampling.</strong> Telemetry comes a few times per second, so differences under about 10 m (or a
           few km/h at a single point) are within the noise.</li>
         <li><strong>Corner zones are fixed windows.</strong> Gains on straights are not counted, and in tight
           sequences the first corner's zone includes the end of the straight before it.</li>
         <li><strong>Unofficial data.</strong> Timing and corner positions come from unofficial sources and can have
-          gaps, as with the Miami lap above.</li>
+          gaps: George Russell's Miami lap had telemetry that was all zeros and was left out.</li>
+        <li><strong>Corner types do not predict results.</strong> I tested whether a track's mix of slow, medium and
+          fast corners predicts each team's gap there. Leaving one race out at a time, it did no better than simply
+          using each team's season average, so the fingerprint describes a car but does not forecast a track.</li>
       </ul>
     </section>
 
@@ -135,7 +144,6 @@
         <li>Seeing <em>how</em> a pole lap was won, corner by corner, instead of only the final gap.</li>
         <li>Comparing car characteristics: which teams are strong in slow, traction-limited corners and which in
           fast, aerodynamic ones.</li>
-        <li>Predicting which tracks should suit which team, based on each track's mix of corner types.</li>
         <li>Comparing seasons: the same pipeline can run on 2026 to see how the new regulations changed team
           strengths.</li>
       </ul>
